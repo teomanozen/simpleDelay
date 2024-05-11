@@ -147,10 +147,13 @@ void CircularBufferDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& 
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         auto* channelData = buffer.getWritePointer (channel);
-        
         fillBuffer(channel, bufferSize, delayBufferSize, channelData);
+        readFromBuffer(buffer, delayBuffer, channel, bufferSize, delayBufferSize);
+        
+        // writePosition = "Where is our audio currently?"
+        // readPosition = writePosition - sampleRate -> 1 second behind from writePosition
     }
-   
+
     //Testing
     //DBG ("Delay Buffer Size: " << delayBufferSize);
     //DBG ("Buffer Size: " << bufferSize);
@@ -166,7 +169,7 @@ void CircularBufferDelayAudioProcessor::fillBuffer(int channel, int bufferSize, 
     if (delayBufferSize > bufferSize + writePosition)  //if yes
     {
         //copy main buffer contents to delay buffer
-        delayBuffer.copyFromWithRamp(channel, writePosition, channelData, bufferSize, 0.1f, 0.1f);
+        delayBuffer.copyFrom(channel, writePosition, channelData, bufferSize);
     }
     else//if no
     {
@@ -174,15 +177,42 @@ void CircularBufferDelayAudioProcessor::fillBuffer(int channel, int bufferSize, 
         auto numSamplesToEnd = delayBufferSize - writePosition;
         
         //Copy that amount of contents to the end...
-        delayBuffer.copyFromWithRamp(channel, writePosition, channelData, numSamplesToEnd, 0.1f, 0.1f);
+        delayBuffer.copyFrom(channel, writePosition, channelData, numSamplesToEnd);
         
         //Calculate how much contents is remaining to copy
         auto numSamplesAtStart = bufferSize - numSamplesToEnd;
         
         // Copy remaining amount to beginning of delay buffer.
-        delayBuffer.copyFromWithRamp(channel, 0, channelData, numSamplesAtStart, 0.1f, 0.1f);
+        delayBuffer.copyFrom(channel, 0, channelData, numSamplesAtStart);
     }
     
+}
+
+void CircularBufferDelayAudioProcessor::readFromBuffer(juce::AudioBuffer<float>& buffer, juce::AudioBuffer<float>& delayBuffer ,int channel, int bufferSize, int delayBufferSize)
+                                                       
+{
+    // 1 second of audio from in the past
+    //auto readPosition = writePosition - getSampleRate();
+    auto readPosition = writePosition - (getSampleRate() * 0.5f); // represents one quarter note in milliseconds
+
+    
+    if ( readPosition < 0)
+        readPosition += delayBufferSize;
+    
+    auto g = 0.7f;
+    
+    if ( readPosition + bufferSize < delayBufferSize)
+    {
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel,readPosition), bufferSize, g, g);
+    }
+    else
+    {
+        auto numSamplesToEnd = delayBufferSize - readPosition;
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel,readPosition), numSamplesToEnd, g, g);
+        
+        auto numSamplesAtStart = bufferSize - numSamplesToEnd;
+        buffer.addFromWithRamp(channel, numSamplesToEnd, delayBuffer.getReadPointer(channel, 0), numSamplesAtStart, g, g);
+    }
 }
 
 //==============================================================================
