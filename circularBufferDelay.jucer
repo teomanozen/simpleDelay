@@ -33,7 +33,7 @@
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="0" name="Debug" targetName="circularBufferDelay"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="circularBufferDelay"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="circularBufferDelay"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
