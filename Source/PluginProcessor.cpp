@@ -93,9 +93,10 @@ void CircularBufferDelayAudioProcessor::changeProgramName (int index, const juce
 //==============================================================================
 void CircularBufferDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    auto delayBufferSize = sampleRate * 2.0;
-    delayBuffer.setSize(getTotalNumOutputChannels(),(int)delayBufferSize);
-
+    //auto delayBufferSize = 2 * (sampleRate + samplesPerBlock);
+    auto delayBufferSize = 2 * (sampleRate * samplesPerBlock);
+    mSampleRate = sampleRate;
+    delayBuffer.setSize(getTotalNumOutputChannels(),delayBufferSize);
 }
 
 void CircularBufferDelayAudioProcessor::releaseResources()
@@ -136,82 +137,86 @@ void CircularBufferDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& 
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    
-    
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    auto bufferSize =  buffer.getNumSamples();
-    auto delayBufferSize = delayBuffer.getNumSamples();
+    auto bufferLength =  buffer.getNumSamples();
+    auto delayBufferLength = delayBuffer.getNumSamples();
     
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
-        auto* channelData = buffer.getWritePointer (channel);
-        fillBuffer(channel, bufferSize, delayBufferSize, channelData);
-        readFromBuffer(buffer, delayBuffer, channel, bufferSize, delayBufferSize);
+        const float* bufferData = buffer.getReadPointer(channel);
+        const float* delayBufferData = delayBuffer.getReadPointer(channel);
+        float* dryBuffer = delayBuffer.getWritePointer(channel);
         
-        // writePosition = "Where is our audio currently?"
-        // readPosition = writePosition - sampleRate -> 1 second behind from writePosition
+        fillDelayBuffer(channel, bufferLength, delayBufferLength, bufferData, delayBufferData);
+        getFromDelayBuffer(buffer, channel, bufferLength, delayBufferLength, bufferData, delayBufferData);
+        feedbackDelay(channel, bufferLength, delayBufferLength, dryBuffer);
     }
-
     //Testing
     //DBG ("Delay Buffer Size: " << delayBufferSize);
     //DBG ("Buffer Size: " << bufferSize);
     //DBG ("Write Position: " << writePosition);
     
-    writePosition += bufferSize;
-    writePosition %= delayBufferSize; // This ensures that writePosition always stays between 0 and delayBufferSize
+    writePosition += bufferLength;
+    writePosition %= delayBufferLength; // This ensures that writePosition always stays between 0 and delayBufferSize
 }
 
-void CircularBufferDelayAudioProcessor::fillBuffer(int channel, int bufferSize, int delayBufferSize, float* channelData)
+void CircularBufferDelayAudioProcessor::fillDelayBuffer(int channel, const int bufferLength, const int delayBufferLength,
+                                                        const float* bufferData, const float* delayBufferData)
 {
+    const float gain = 0.8;
     //Check to see if main buffer copies to delay buffer without needing to wrap...
-    if (delayBufferSize > bufferSize + writePosition)  //if yes
+    if (delayBufferLength > bufferLength + writePosition)  //if yes
     {
         //copy main buffer contents to delay buffer
-        delayBuffer.copyFrom(channel, writePosition, channelData, bufferSize);
+        delayBuffer.copyFromWithRamp(channel, writePosition, bufferData, bufferLength, gain, gain);
     }
     else//if no
     {
-        //Determine how much space is left at the end of the delay buffer
-        auto numSamplesToEnd = delayBufferSize - writePosition;
+        auto bufferRemaining = delayBufferLength - writePosition;
         
         //Copy that amount of contents to the end...
-        delayBuffer.copyFrom(channel, writePosition, channelData, numSamplesToEnd);
-        
-        //Calculate how much contents is remaining to copy
-        auto numSamplesAtStart = bufferSize - numSamplesToEnd;
+        delayBuffer.copyFromWithRamp(channel, writePosition, bufferData, bufferRemaining, gain, gain);
         
         // Copy remaining amount to beginning of delay buffer.
-        delayBuffer.copyFrom(channel, 0, channelData, numSamplesAtStart);
+        delayBuffer.copyFromWithRamp(channel, 0, bufferData, bufferLength - bufferRemaining, gain, gain);
     }
     
 }
 
-void CircularBufferDelayAudioProcessor::readFromBuffer(juce::AudioBuffer<float>& buffer, juce::AudioBuffer<float>& delayBuffer ,int channel, int bufferSize, int delayBufferSize)
-                                                       
+void CircularBufferDelayAudioProcessor::getFromDelayBuffer(juce::AudioBuffer<float>& buffer, int channel, const int bufferLength ,const int delayBufferLength, const float* bufferData, const float* delayBufferData)
 {
-    // 1 second of audio from in the past
-    //auto readPosition = writePosition - getSampleRate();
-    auto readPosition = writePosition - (getSampleRate() * 0.5f); // represents one quarter note in milliseconds
-
+    int delayTime = 70;
+    const int readPosition = static_cast<int> (delayBufferLength + writePosition - (mSampleRate * delayTime / 1000)) % delayBufferLength;
     
-    if ( readPosition < 0)
-        readPosition += delayBufferSize;
-    
-    auto g = 0.7f;
-    
-    if ( readPosition + bufferSize < delayBufferSize)
+    if ( delayBufferLength > bufferLength + readPosition)
     {
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel,readPosition), bufferSize, g, g);
+        //buffer.addFrom ---> This add delay signal to main signal
+        //buffer.copyFrom ---> This takes delay signal only
+        buffer.copyFrom(channel, 0, delayBufferData + readPosition, bufferLength); // This takes delay signal only
     }
     else
     {
-        auto numSamplesToEnd = delayBufferSize - readPosition;
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel,readPosition), numSamplesToEnd, g, g);
+        const int bufferRemaining = delayBufferLength - readPosition;
+        buffer.copyFrom(channel, 0, delayBufferData + readPosition, bufferRemaining);
+        buffer.copyFrom(channel, bufferRemaining, delayBufferData, bufferLength - bufferRemaining);
+    }
+   
+}
+
+void CircularBufferDelayAudioProcessor::feedbackDelay(int channel, const int bufferLength ,const int delayBufferLength, float* dryBuffer)
+{
+    if ( delayBufferLength > bufferLength + writePosition)
+    {
+        delayBuffer.addFromWithRamp(channel, writePosition, dryBuffer, bufferLength, 0.8, 0.8);
+    }
+    else
+    {
+        const int bufferRemaining = delayBufferLength - writePosition;
         
-        auto numSamplesAtStart = bufferSize - numSamplesToEnd;
-        buffer.addFromWithRamp(channel, numSamplesToEnd, delayBuffer.getReadPointer(channel, 0), numSamplesAtStart, g, g);
+        delayBuffer.addFromWithRamp(channel, bufferRemaining, dryBuffer, bufferRemaining, 0.8, 0.8);
+        delayBuffer.addFromWithRamp(channel, 0, dryBuffer, bufferLength - bufferRemaining, 0.8, 0.8);
     }
 }
 
