@@ -14,7 +14,7 @@
 //==============================================================================
 /**
 */
-class CircularBufferDelayAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::Slider::Listener
+class CircularBufferDelayAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::Slider::Listener, public juce::Button::Listener
 {
 public:
     CircularBufferDelayAudioProcessorEditor (CircularBufferDelayAudioProcessor&);
@@ -25,6 +25,7 @@ public:
     void resized() override;
     
     void sliderValueChanged(juce::Slider* slider) override;
+    void buttonClicked(juce::Button* button) override;
 
 private:
     // This reference is provided as a quick way for your editor to
@@ -38,6 +39,9 @@ private:
     juce::Label delayTimeLabel;
     juce::Label feedbackLabel;
     juce::Label wetDryLabel;
+    
+    juce::ToggleButton feedbackToggleButton;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CircularBufferDelayAudioProcessorEditor)
     

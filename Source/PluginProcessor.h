@@ -65,6 +65,8 @@ public:
     int feedback ;
     int wetDry;
     
+    bool feedbackOnOff;
+    
 private:
    
     juce::AudioBuffer<float> delayBuffer;

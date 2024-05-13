@@ -23,15 +23,21 @@ CircularBufferDelayAudioProcessorEditor::CircularBufferDelayAudioProcessorEditor
     delayTimeSlider.addListener(this);
     
     
-    feedbackSlider.setSliderStyle (juce::Slider::Rotary);
-    feedbackSlider.setRange (0, 100, 1);
-    feedbackSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 100, 10);
-    feedbackSlider.addListener(this);
+    //feedbackSlider.setSliderStyle (juce::Slider::Rotary);
+    //feedbackSlider.setRange (0, 100, 1);
+    //feedbackSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 100, 10);
+    //feedbackSlider.addListener(this);
     
     wetDrySlider.setSliderStyle (juce::Slider::Rotary);
     wetDrySlider.setRange (0, 100, 1);
     wetDrySlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 100, 10);
     wetDrySlider.addListener(this);
+    
+    // Inside the constructor
+    feedbackToggleButton.setButtonText("Feedback On/Off");
+    feedbackToggleButton.addListener(this); // Make sure your editor class inherits Button::Listener
+    addAndMakeVisible(&feedbackToggleButton);
+
     
     addAndMakeVisible(&delayTimeSlider);
     addAndMakeVisible(&feedbackSlider);
@@ -43,12 +49,13 @@ CircularBufferDelayAudioProcessorEditor::CircularBufferDelayAudioProcessorEditor
     delayTimeLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(&delayTimeLabel);
     
-    feedbackLabel.setText("Feedback", juce::dontSendNotification);
-    feedbackLabel.attachToComponent(&feedbackSlider, false);
-    feedbackLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(&feedbackLabel);
     
-    wetDryLabel.setText("Wet&Dry", juce::dontSendNotification);
+    //feedbackLabel.setText("Feedback", juce::dontSendNotification);
+    //feedbackLabel.attachToComponent(&feedbackSlider, false);
+    //feedbackLabel.setJustificationType(juce::Justification::centred);
+    //addAndMakeVisible(&feedbackLabel);
+    
+    wetDryLabel.setText("Dry&Wet", juce::dontSendNotification);
     wetDryLabel.attachToComponent(&wetDrySlider, false);
     wetDryLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(&wetDryLabel);
@@ -75,8 +82,12 @@ void CircularBufferDelayAudioProcessorEditor::resized()
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
     delayTimeSlider.setBounds((getWidth() / 4 * 1) - (100 / 2), (getHeight() / 4 * 2) - (100 / 2), 100, 100);
-    feedbackSlider.setBounds((getWidth() / 4 * 2) - (100 / 2), (getHeight() / 4 * 2) - (100 / 2), 100, 100);
-    wetDrySlider.setBounds((getWidth() / 4 * 3) - (100 / 2), (getHeight() / 4 * 2) - (100 / 2), 100, 100);
+    //feedbackSlider.setBounds((getWidth() / 4 * 2) - (100 / 2), (getHeight() / 4 * 2) - (100 / 2), 100, 100);
+    wetDrySlider.setBounds((getWidth() / 4 * 2) - (100 / 2), (getHeight() / 4 * 2) - (100 / 2), 100, 100);
+    
+    feedbackToggleButton.setBounds((getWidth() / 4 * 3) - (100 / 2), (getHeight() / 4 * 2) - (100 / 2), 100, 100);
+
+    
     
 }
 
@@ -93,5 +104,13 @@ void CircularBufferDelayAudioProcessorEditor::sliderValueChanged(juce::Slider* s
     if(slider == &wetDrySlider)
     {
         audioProcessor.wetDry = wetDrySlider.getValue();
+    }
+}
+
+void CircularBufferDelayAudioProcessorEditor::buttonClicked(juce::Button* button)
+{
+    if (button == &feedbackToggleButton)
+    {
+        audioProcessor.feedbackOnOff = feedbackToggleButton.getToggleState();
     }
 }

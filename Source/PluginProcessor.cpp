@@ -151,11 +151,18 @@ void CircularBufferDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& 
         const float* bufferData = buffer.getReadPointer(channel);
         const float* delayBufferData = delayBuffer.getReadPointer(channel);
         float* dryBuffer = buffer.getWritePointer(channel);
+        float* wetBuffer = new float[bufferLength]; // Allocate memory for the wet signal
         
         fillDelayBuffer(channel, bufferLength, delayBufferLength, bufferData, delayBufferData);
         
         getFromDelayBuffer(buffer, channel, bufferLength, delayBufferLength, bufferData, delayBufferData,delaytime);
-        //feedbackDelay(channel, bufferLength, delayBufferLength, dryBuffer);
+        
+        if (feedbackOnOff)
+        {
+            feedbackDelay(channel, bufferLength, delayBufferLength, dryBuffer);
+        }
+        
+       
     }
     //Testing
     //DBG ("Delay Buffer Size: " << delayBufferSize);
@@ -201,13 +208,14 @@ void CircularBufferDelayAudioProcessor::getFromDelayBuffer(juce::AudioBuffer<flo
     {
         //buffer.addFrom ---> This add delay signal to main signal
         //buffer.copyFrom ---> This takes delay signal only
-        buffer.copyFrom(channel, 0, delayBufferData + readPosition, bufferLength); // This takes delay signal only
+        buffer.addFrom(channel, 0, delayBufferData + readPosition, bufferLength); // This takes delay signal only
+        
     }
     else
     {
         const int bufferRemaining = delayBufferLength - readPosition;
-        buffer.copyFrom(channel, 0, delayBufferData + readPosition, bufferRemaining);
-        buffer.copyFrom(channel, bufferRemaining, delayBufferData, bufferLength - bufferRemaining);
+        buffer.addFrom(channel, 0, delayBufferData + readPosition, bufferRemaining);
+        buffer.addFrom(channel, bufferRemaining, delayBufferData, bufferLength - bufferRemaining);
     }
    
 }
