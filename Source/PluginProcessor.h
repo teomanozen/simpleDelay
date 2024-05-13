@@ -57,14 +57,22 @@ public:
                                     const float* bufferData, const float* delayBufferData);
     
     void getFromDelayBuffer(juce::AudioBuffer<float>& buffer, int channel, const int bufferLength
-                                                    ,const int delayBufferLength, const float* bufferData, const float* delayBufferData);
+                                                    ,const int delayBufferLength, const float* bufferData, const float* delayBufferData, int delayTime);
     
     void feedbackDelay(int channel, const int bufferLength ,const int delayBufferLength, float* dryBuffer);
+    
+    int delaytime ;
+    int feedback ;
+    int wetDry;
+    
 private:
    
     juce::AudioBuffer<float> delayBuffer;
     int writePosition {0};
     int mSampleRate { 44100 };
+    
+ 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CircularBufferDelayAudioProcessor)
+    
 };

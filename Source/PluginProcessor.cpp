@@ -9,6 +9,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+
 //==============================================================================
 CircularBufferDelayAudioProcessor::CircularBufferDelayAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -152,8 +153,9 @@ void CircularBufferDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& 
         float* dryBuffer = buffer.getWritePointer(channel);
         
         fillDelayBuffer(channel, bufferLength, delayBufferLength, bufferData, delayBufferData);
-        getFromDelayBuffer(buffer, channel, bufferLength, delayBufferLength, bufferData, delayBufferData);
-        feedbackDelay(channel, bufferLength, delayBufferLength, dryBuffer);
+        
+        getFromDelayBuffer(buffer, channel, bufferLength, delayBufferLength, bufferData, delayBufferData,delaytime);
+        //feedbackDelay(channel, bufferLength, delayBufferLength, dryBuffer);
     }
     //Testing
     //DBG ("Delay Buffer Size: " << delayBufferSize);
@@ -167,7 +169,7 @@ void CircularBufferDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& 
 void CircularBufferDelayAudioProcessor::fillDelayBuffer(int channel, const int bufferLength, const int delayBufferLength,
                                                         const float* bufferData, const float* delayBufferData)
 {
-    const float gain = 0.1;
+    const float gain = 0.8;
     //Check to see if main buffer copies to delay buffer without needing to wrap...
     if (delayBufferLength > bufferLength + writePosition)  //if yes
     {
@@ -188,9 +190,9 @@ void CircularBufferDelayAudioProcessor::fillDelayBuffer(int channel, const int b
     
 }
 
-void CircularBufferDelayAudioProcessor::getFromDelayBuffer(juce::AudioBuffer<float>& buffer, int channel, const int bufferLength ,const int delayBufferLength, const float* bufferData, const float* delayBufferData)
+void CircularBufferDelayAudioProcessor::getFromDelayBuffer(juce::AudioBuffer<float>& buffer, int channel, const int bufferLength ,const int delayBufferLength, const float* bufferData, const float* delayBufferData, int delaytime)
 {
-    int delayTime = 200;
+    int delayTime = delaytime;
     const int readPosition = static_cast<int> (delayBufferLength + writePosition - (mSampleRate * delayTime / 1000)) % delayBufferLength; // -->old
     //const int readPosition = (writePosition - static_cast<int>(mSampleRate * delayTime / 1000) + delayBufferLength) % delayBufferLength;
 
@@ -235,6 +237,7 @@ bool CircularBufferDelayAudioProcessor::hasEditor() const
 juce::AudioProcessorEditor* CircularBufferDelayAudioProcessor::createEditor()
 {
     return new CircularBufferDelayAudioProcessorEditor (*this);
+  
 }
 
 //==============================================================================
